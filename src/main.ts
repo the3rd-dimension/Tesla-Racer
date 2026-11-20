@@ -2,6 +2,7 @@ import './ui/styles.css';
 import { Game } from './app/Game';
 import { validateAllPatterns } from './traffic/patterns';
 import { UI } from './ui/UI';
+import { STRINGS } from './ui/strings';
 
 function webglAvailable(): boolean {
   try {
@@ -15,21 +16,21 @@ function webglAvailable(): boolean {
 const ui = new UI();
 
 if (!webglAvailable()) {
-  ui.showFatal('Your browser or device does not support WebGL, which this game needs. Try a recent version of Chrome, Firefox, Edge or Safari.');
+  ui.showFatal(STRINGS.fatalWebgl);
 } else {
   try {
     if (import.meta.env.DEV) {
       const bad = validateAllPatterns();
-      if (bad.length) console.warn('[Tesla Surfers] Invalid traffic patterns (no safe gap):', bad);
+      if (bad.length)       console.warn('[Tesla Surfers] Invalid traffic patterns (no safe gap):', bad);
     }
     const root = document.getElementById('game-root');
     if (!root) throw new Error('#game-root missing');
     new Game(root, ui).start().catch((err: unknown) => {
       console.error(err);
-      ui.showFatal('Something went wrong while loading the game. Please reload the page.');
+      ui.showFatal(STRINGS.fatalLoading);
     });
   } catch (err) {
     console.error(err);
-    ui.showFatal('Something went wrong while starting the game. Please reload the page.');
+    ui.showFatal(STRINGS.fatalStarting);
   }
 }

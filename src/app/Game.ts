@@ -80,7 +80,7 @@ export class Game {
     this.ui.positionMirror(this.gfx.mirrorRect);
     this.gfx.onContextLost = () => {
       this.pause();
-      this.ui.showFatal('The graphics context was lost. Please reload the page.');
+      this.ui.showFatal(STRINGS.fatalContext);
     };
     this.gfx.onContextRestored = () => this.ui.hideFatal();
 
@@ -428,20 +428,23 @@ export class Game {
       const level = garage.upgrades[id];
       const maxLevel = CONFIG.store.upgrades[id].maxLevel;
       const effect = id === 'speed'
-        ? `Cruise speed +${Math.round(level * speed.speedPerLevel * 100)}%`
+        ? STRINGS.upgradeEffectSpeed(Math.round(level * speed.speedPerLevel * 100))
         : id === 'boost'
-          ? `Boost +${level * boost.chargePerLevel} capacity · ×${(CONFIG.boost.multiplier + level * boost.multiplierPerLevel).toFixed(2)} power`
-          : `${CONFIG.chaser.catchesToEndRun + level * chaser.extraCatchesPerLevel} chaser hits before game over`;
+          ? STRINGS.upgradeEffectBoost(
+            level * boost.chargePerLevel,
+            (CONFIG.boost.multiplier + level * boost.multiplierPerLevel).toFixed(2),
+          )
+          : STRINGS.upgradeEffectChaser(CONFIG.chaser.catchesToEndRun + level * chaser.extraCatchesPerLevel);
       const nextEffect = level >= maxLevel
-        ? 'Fully upgraded'
+        ? STRINGS.fullyUpgraded
         : id === 'speed'
-          ? `Next: +${Math.round(speed.speedPerLevel * 100)}% cruise speed`
+          ? STRINGS.upgradeNextSpeed(Math.round(speed.speedPerLevel * 100))
           : id === 'boost'
-            ? `Next: +${boost.chargePerLevel} capacity and +${boost.multiplierPerLevel.toFixed(2)} boost power`
-            : `Next: +${chaser.extraCatchesPerLevel} chaser hit before game over`;
+            ? STRINGS.upgradeNextBoost(boost.chargePerLevel, boost.multiplierPerLevel.toFixed(2))
+            : STRINGS.upgradeNextChaser(chaser.extraCatchesPerLevel);
       return {
         id,
-        name: id === 'chaser' ? 'Chaser Protection' : id === 'boost' ? 'Boost System' : 'Engine',
+        name: STRINGS.upgradeNames[id],
         level,
         maxLevel,
         effect,
@@ -449,9 +452,9 @@ export class Game {
         cost: level >= maxLevel ? null : upgradeCost(id, level),
       };
     });
-    const skins = MODEL_PATHS.skins.map((path, index) => ({
+    const skins = MODEL_PATHS.skins.map((_path, index) => ({
       index,
-      name: path.split('/').pop()?.replace(/\.glb$/i, '') ?? `Skin ${index + 1}`,
+      name: STRINGS.skinName(index),
       available: this.models.skins[index] !== null,
       owned: garage.ownedSkins.includes(index),
       equipped: garage.equippedSkin === index,
@@ -462,7 +465,9 @@ export class Game {
 
   private buyUpgrade(id: UpgradeId): void {
     if (!this.storage.purchaseUpgrade(id)) {
-      this.ui.toast(this.storage.getMoney() < (upgradeCost(id, this.storage.getGarage().upgrades[id])) ? STRINGS.toastNotEnoughMoney : 'Already fully upgraded');
+      this.ui.toast(this.storage.getMoney() < (upgradeCost(id, this.storage.getGarage().upgrades[id]))
+        ? STRINGS.toastNotEnoughMoney
+        : STRINGS.toastAlreadyUpgraded);
       return;
     }
     this.applyGarage();

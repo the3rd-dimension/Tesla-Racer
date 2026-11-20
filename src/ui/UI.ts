@@ -3,7 +3,7 @@ import type { CameraView } from '../core/CameraRig';
 import type { MirrorRect } from '../core/Renderer';
 import type { UpgradeId } from '../systems/Garage';
 import type { Settings } from '../systems/Storage';
-import { STRINGS } from './strings';
+import { formatTaka, STRINGS } from './strings';
 
 export type ScreenName = 'menu' | 'hud' | 'pause' | 'gameover';
 
@@ -194,24 +194,26 @@ export class UI {
   }
 
   setTotalMoney(money: number): void {
-    $('menu-money').textContent = `$${Math.floor(money).toLocaleString()}`;
+    $('menu-money').textContent = formatTaka(money);
   }
 
   showStore(data: StoreData): void {
-    this.storeMoney.textContent = `$${Math.floor(data.money).toLocaleString()}`;
+    this.storeMoney.textContent = formatTaka(data.money);
     this.storeUpgrades.replaceChildren();
     for (const upgrade of data.upgrades) {
       const card = document.createElement('article');
       card.className = 'store-card';
       const title = document.createElement('strong');
-      title.textContent = `${upgrade.name} · Level ${upgrade.level}/${upgrade.maxLevel}`;
+      title.textContent = `${upgrade.name} · ${STRINGS.storeLevel(upgrade.level, upgrade.maxLevel)}`;
       const effect = document.createElement('p');
       effect.textContent = upgrade.effect;
       const next = document.createElement('small');
       next.textContent = upgrade.nextEffect;
       const button = document.createElement('button');
       button.className = 'btn store-action';
-      button.textContent = upgrade.cost === null ? 'MAX LEVEL' : `Upgrade · $${upgrade.cost.toLocaleString()}`;
+      button.textContent = upgrade.cost === null
+        ? STRINGS.storeMaxLevel
+        : `${STRINGS.storeUpgrade} · ${formatTaka(upgrade.cost)}`;
       button.disabled = upgrade.cost === null || upgrade.cost > data.money;
       button.addEventListener('click', () => {
         this.onClickSound?.();
@@ -225,12 +227,14 @@ export class UI {
     const defaultSkin = document.createElement('article');
     defaultSkin.className = 'store-card';
     const defaultName = document.createElement('strong');
-    defaultName.textContent = 'Original Tesla';
+    defaultName.textContent = STRINGS.storeDefaultSkin;
     const defaultDescription = document.createElement('p');
-    defaultDescription.textContent = 'The standard vehicle model.';
+    defaultDescription.textContent = STRINGS.storeDefaultSkinDescription;
     const defaultButton = document.createElement('button');
     defaultButton.className = 'btn store-action';
-    defaultButton.textContent = data.skins.some((skin) => skin.equipped) ? 'Select' : 'Equipped';
+    defaultButton.textContent = data.skins.some((skin) => skin.equipped)
+      ? STRINGS.storeSelect
+      : STRINGS.storeEquipped;
     defaultButton.disabled = !data.skins.some((skin) => skin.equipped);
     defaultButton.addEventListener('click', () => {
       this.onClickSound?.();
@@ -245,23 +249,29 @@ export class UI {
       const title = document.createElement('strong');
       title.textContent = skin.name;
       const description = document.createElement('p');
-      description.textContent = !skin.available ? 'Model file not found' : skin.equipped ? 'Currently equipped' : skin.owned ? 'Owned' : 'New vehicle skin';
+      description.textContent = !skin.available
+        ? STRINGS.storeModelMissing
+        : skin.equipped
+          ? STRINGS.storeEquipped
+          : skin.owned
+            ? STRINGS.storeOwned
+            : STRINGS.storeNewSkin;
       const button = document.createElement('button');
       button.className = 'btn store-action';
       if (!skin.available) {
-        button.textContent = 'MODEL NEEDED';
+        button.textContent = STRINGS.storeModelMissing;
         button.disabled = true;
       } else if (skin.equipped) {
-        button.textContent = 'EQUIPPED';
+        button.textContent = STRINGS.storeEquipped;
         button.disabled = true;
       } else if (skin.owned) {
-        button.textContent = 'EQUIP';
+        button.textContent = STRINGS.storeEquip;
         button.addEventListener('click', () => {
           this.onClickSound?.();
           this.handlers?.onEquipSkin(skin.index);
         });
       } else {
-        button.textContent = `Buy · $${skin.cost.toLocaleString()}`;
+        button.textContent = `${STRINGS.storeBuy} · ${formatTaka(skin.cost)}`;
         button.disabled = skin.cost > data.money;
         button.addEventListener('click', () => {
           this.onClickSound?.();
@@ -309,7 +319,7 @@ export class UI {
       this.last.speed = speed;
     }
     if (h.money !== this.last.money) {
-      this.hudMoney.textContent = `$${Math.floor(h.money).toLocaleString()}`;
+      this.hudMoney.textContent = formatTaka(h.money);
       this.last.money = h.money;
     }
     const boost = Math.round(h.boost01 * 100);
@@ -356,9 +366,9 @@ export class UI {
     this.setHidden($('go-record'), !d.newBest);
     $('go-score').textContent = Math.floor(d.score).toLocaleString();
     $('go-best').textContent = Math.floor(d.best).toLocaleString();
-    $('go-distance').textContent = `${Math.floor(d.distance)} m`;
+    $('go-distance').textContent = `${Math.floor(d.distance)} মিটার`;
     $('go-pickups').textContent = String(d.pickups);
-    $('go-money').textContent = `$${Math.floor(d.money).toLocaleString()}`;
+    $('go-money').textContent = formatTaka(d.money);
     this.vignette.style.opacity = '0';
   }
 
@@ -378,8 +388,8 @@ export class UI {
   setCameraView(view: CameraView): void {
     const button = $('btn-view');
     const driver = view === 'driver';
-    button.textContent = driver ? '1P' : '3P';
-    button.setAttribute('aria-label', driver ? 'Switch to external view' : "Switch to driver's seat view");
+    button.textContent = driver ? STRINGS.viewExternal : STRINGS.viewDriver;
+    button.setAttribute('aria-label', driver ? 'বাহিরের দৃশ্যে যান' : 'চালকের আসনের দৃশ্যে যান');
   }
 
   private setHidden(el: HTMLElement, hidden: boolean): void {
