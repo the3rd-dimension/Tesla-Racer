@@ -1,8 +1,8 @@
 {
-  "name": "tesla-racer",
+  "name": "tesla-surfers",
   "private": true,
   "version": "0.1.0",
-  "description": "Tesla Racer - browser endless auto-rickshaw runner (Three.js + TypeScript + Vite)",
+  "description": "Tesla Surfers - browser endless auto-rickshaw runner (Three.js + TypeScript + Vite)",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

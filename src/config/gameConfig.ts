@@ -36,10 +36,13 @@ export const CONFIG = {
     /** On narrow (portrait) screens the FOV widens so the road stays visible. */
     minHorizontalAspect: 1.25,
     maxFov: 100,
-    height: 4.8,
-    distance: 8.5,
+    height: 2.7,
+    distance: 5,
     lookAhead: 16,
     lookHeight: 0.8,
+    driverHeight: 1.3,
+    driverOffsetZ: -0.25,
+    driverLookAhead: 16,
     followLag: 5,
     fovLag: 4,
     near: 0.1,
@@ -48,6 +51,10 @@ export const CONFIG = {
     fogFar: 235,
     shakeDecay: 5,
     shakeMagnitude: 0.35,
+  },
+
+  audio: {
+    menuMusicVolume: 0.35,
   },
 
   /** Rear-view mirror (second render pass) - the chaser is behind the player. */
@@ -94,11 +101,18 @@ export const CONFIG = {
 
   jump: {
     durationSeconds: 0.9,
-    height: 2.3,
+    height: 3,
     /** Player y must be above this to pass over a jumpable vehicle. */
     clearHeight: 0.9,
     /** A Jump pickup stays usable for this long. */
     readySeconds: 10,
+    flipRotations: 1,
+    rocketEmissionSeconds: 0.07,
+    rocketLifetimeSeconds: 0.34,
+    rocketSpeed: 5.5,
+    rocketDownwardSpeed: 0.65,
+    rocketSpread: 0.5,
+    rocketParticleCount: 24,
   },
 
   collision: {

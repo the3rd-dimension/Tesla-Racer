@@ -1,4 +1,5 @@
 import { CONFIG } from '../config/gameConfig';
+import type { CameraView } from '../core/CameraRig';
 import type { MirrorRect } from '../core/Renderer';
 import type { UpgradeId } from '../systems/Garage';
 import type { Settings } from '../systems/Storage';
@@ -12,6 +13,7 @@ export interface UIHandlers {
   onRestart(): void;
   onMenu(): void;
   onPause(): void;
+  onCameraToggle(): void;
   onHorn(): void;
   onSpecial(): void;
   onSettings(patch: Partial<Settings>): void;
@@ -124,6 +126,7 @@ export class UI {
     click('btn-menu', () => this.handlers?.onMenu());
     click('btn-menu-pause', () => this.handlers?.onMenu());
     click('btn-pause', () => this.handlers?.onPause());
+    click('btn-view', () => this.handlers?.onCameraToggle());
     click('btn-horn', () => this.handlers?.onHorn());
     click('btn-special', () => this.handlers?.onSpecial());
     click('btn-howto', () => this.setHidden(this.howtoEl, false));
@@ -370,6 +373,13 @@ export class UI {
 
   setMirrorVisible(visible: boolean): void {
     this.setHidden(this.mirrorEl, !visible || !CONFIG.mirror.enabled);
+  }
+
+  setCameraView(view: CameraView): void {
+    const button = $('btn-view');
+    const driver = view === 'driver';
+    button.textContent = driver ? '1P' : '3P';
+    button.setAttribute('aria-label', driver ? 'Switch to external view' : "Switch to driver's seat view");
   }
 
   private setHidden(el: HTMLElement, hidden: boolean): void {

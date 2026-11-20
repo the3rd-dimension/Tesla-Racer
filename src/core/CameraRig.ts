@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { CONFIG } from '../config/gameConfig';
 import { damp } from './math';
 
-/** Third-person chase camera with lateral follow, boost FOV kick, shake and portrait FOV compensation. */
+export type CameraView = 'external' | 'driver';
+
+/** External and driver's-seat cameras with boost FOV kick, shake and portrait FOV compensation. */
 export class CameraRig {
   private camX = 0;
   private lookX = 0;
@@ -23,7 +25,7 @@ export class CameraRig {
   }
 
   /** @param boost01 0..1 how "boosted" the player currently is */
-  update(dt: number, playerX: number, boost01: number, aspect: number): void {
+  update(dt: number, playerX: number, playerY: number, boost01: number, aspect: number, view: CameraView): void {
     const c = CONFIG.camera;
     this.time += dt;
     this.camX = damp(this.camX, playerX * 0.7, c.followLag, dt);
@@ -32,8 +34,14 @@ export class CameraRig {
 
     const sx = (Math.sin(this.time * 61) + Math.sin(this.time * 37)) * 0.5 * this.shake * c.shakeMagnitude;
     const sy = (Math.sin(this.time * 53) + Math.sin(this.time * 29)) * 0.5 * this.shake * c.shakeMagnitude;
-    this.camera.position.set(this.camX + sx, c.height + sy, c.distance);
-    this.camera.lookAt(this.lookX, c.lookHeight, -c.lookAhead);
+    if (view === 'driver') {
+      const driverY = c.driverHeight + playerY;
+      this.camera.position.set(playerX + sx, driverY + sy, c.driverOffsetZ);
+      this.camera.lookAt(playerX, driverY, c.driverOffsetZ - c.driverLookAhead);
+    } else {
+      this.camera.position.set(this.camX + sx, c.height + sy, c.distance);
+      this.camera.lookAt(this.lookX, c.lookHeight, -c.lookAhead);
+    }
 
     // Keep the road visible on narrow screens by widening the vertical FOV.
     const target = c.fov + (c.boostFov - c.fov) * boost01;

@@ -20,7 +20,7 @@ if (!webglAvailable()) {
   try {
     if (import.meta.env.DEV) {
       const bad = validateAllPatterns();
-      if (bad.length) console.warn('[Tesla Racer] Invalid traffic patterns (no safe gap):', bad);
+      if (bad.length) console.warn('[Tesla Surfers] Invalid traffic patterns (no safe gap):', bad);
     }
     const root = document.getElementById('game-root');
     if (!root) throw new Error('#game-root missing');

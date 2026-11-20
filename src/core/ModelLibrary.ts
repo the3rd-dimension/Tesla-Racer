@@ -63,7 +63,7 @@ export class ModelLibrary {
         }
         return scene;
       } catch (error) {
-        console.warn(`[Tesla Racer] Could not load ${label} model "${path}".`, error);
+        console.warn(`[Tesla Surfers] Could not load ${label} model "${path}".`, error);
         return null;
       }
     }));
@@ -86,7 +86,7 @@ export class ModelLibrary {
         }
         return scene;
       } catch (error) {
-        console.warn(`[Tesla Racer] Could not load ${label} model "${path}".`, error);
+        console.warn(`[Tesla Surfers] Could not load ${label} model "${path}".`, error);
         return null;
       }
     }));

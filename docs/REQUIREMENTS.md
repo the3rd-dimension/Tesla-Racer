@@ -1,9 +1,9 @@
-# TESLA RACER
+# TESLA SURFERS
 
 ## Pre-Production & Requirements Analysis
 
 **Document type:** Game pre-production / requirements specification\
-**Project name:** Tesla Racer\
+**Project name:** Tesla Surfers\
 **Genre:** Single-player arcade endless driving runner\
 **Target platforms:** Desktop and mobile web browsers\
 **Delivery format:** Browser-based WebGL game\
@@ -19,7 +19,7 @@ confirmed with the client\
 
 ### 1.1 Concept
 
-Tesla Racer is a cartoon-styled, single-player endless driving game
+Tesla Surfers is a cartoon-styled, single-player endless driving game
 inspired by the accessible arcade feel of *Baper Rasta*. The player
 drives a Bangladeshi electric auto-rickshaw (commonly called a Tesla in
 local slang/context) through continuously generated traffic and road
@@ -416,7 +416,7 @@ pickup (e.g. oil slick) in a later phase.
 
 ### 4.1 Main menu --- P0
 
--   Game title: **Tesla Racer**.
+-   Game title: **Tesla Surfers**.
 -   Play button.
 -   Best score.
 -   Controls/help prompt.
@@ -1097,7 +1097,7 @@ before investing in content production.
 
 ------------------------------------------------------------------------
 
-*End of document --- Tesla Racer Pre-Production & Requirements Analysis,
+*End of document --- Tesla Surfers Pre-Production & Requirements Analysis,
 v0.1*
 
 ------------------------------------------------------------------------

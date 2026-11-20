@@ -5,6 +5,15 @@ import type { InputSnapshot } from '../input/InputManager';
 import type { Footprint } from '../systems/Collision';
 import { makeRickshaw } from '../vehicles/models';
 
+interface RocketParticle {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  life: number;
+  vx: number;
+  vy: number;
+  vz: number;
+}
+
 export interface PlayerEvents {
   onBoostStart?: () => void;
   onBoostEnd?: () => void;
@@ -44,12 +53,20 @@ export class Player implements Footprint {
   private crashTilt = 0;
   private wheels: THREE.Group[];
   private wheelRadius: number;
+  private readonly rocketParticles: RocketParticle[] = [];
+  private readonly rocketGeometry = new THREE.ConeGeometry(0.1, 0.45, 6);
+  private rocketEmissionTime = 0;
+  private nextRocketParticle = 0;
+  private flipDirection = 1;
+  private wheelEmitters: THREE.Vector3[] = [];
 
   constructor() {
     const m = makeRickshaw({ body: 0x2ec4b6, canopy: 0xffc83d, accent: 0xffffff });
     this.group.add(m.group);
     this.wheels = m.wheels;
     this.wheelRadius = m.wheelRadius;
+    this.setWheelEmitters();
+    this.createRocketParticles();
   }
 
   setModel(model: THREE.Object3D | undefined): void {
@@ -59,8 +76,10 @@ export class Player implements Footprint {
     );
     this.group.clear();
     this.group.add(built.group);
+    for (const particle of this.rocketParticles) this.group.add(particle.mesh);
     this.wheels = built.wheels;
     this.wheelRadius = built.wheelRadius;
+    this.setWheelEmitters();
   }
 
   setFloatingSkin(enabled: boolean): void {
@@ -105,6 +124,11 @@ export class Player implements Footprint {
     this.boosting = false;
     this.jumpReady = 0;
     this.airTime = -1;
+    this.rocketEmissionTime = 0;
+    this.rocketParticles.forEach((particle) => {
+      particle.life = 0;
+      particle.mesh.visible = false;
+    });
     this.boostFactor = 1;
     this.boostLocked = false;
     this.slowRemaining = 0;
@@ -176,6 +200,8 @@ export class Player implements Footprint {
     if (controllable && input.jumpPressed && this.jumpReady > 0 && !this.airborne) {
       this.airTime = 0;
       this.jumpReady = 0;
+      this.rocketEmissionTime = 0;
+      this.flipDirection *= -1;
       this.events.onJump?.();
     }
     if (this.airborne) {
@@ -203,11 +229,22 @@ export class Player implements Footprint {
           * CONFIG.player.floatingSkin.bobAmplitude
       : 0;
     this.group.position.set(this.x, this.y + bounce + hover, 0);
+    if (this.airborne) {
+      this.rocketEmissionTime += dt;
+      while (this.rocketEmissionTime >= CONFIG.jump.rocketEmissionSeconds) {
+        this.emitRocketParticles();
+        this.rocketEmissionTime -= CONFIG.jump.rocketEmissionSeconds;
+      }
+    }
+    this.updateRocketParticles(dt);
     const lat = clamp(this.vx / P.maxLateralSpeed, -1, 1);
+    const jumpProgress = this.airborne ? clamp(this.airTime / CONFIG.jump.durationSeconds, 0, 1) : 0;
     this.group.rotation.set(
       this.airborne ? -0.12 : 0,
       -lat * P.yawAmount,
-      -lat * P.leanAmount + this.crashTilt * 0.5,
+      -lat * P.leanAmount
+        + this.crashTilt * 0.5
+        + this.flipDirection * Math.PI * 2 * CONFIG.jump.flipRotations * jumpProgress,
     );
     const spin = (this.speed * dt) / this.wheelRadius;
     for (const w of this.wheels) w.rotation.x -= spin;
@@ -217,6 +254,67 @@ export class Player implements Footprint {
     if (this.boosting) {
       this.boosting = false;
       this.events.onBoostEnd?.();
+    }
+  }
+
+  private setWheelEmitters(): void {
+    this.wheelEmitters = this.wheels.length > 0
+      ? this.wheels.map((wheel) => wheel.position.clone())
+      : [
+        new THREE.Vector3(-0.72, 0.32, 0.8),
+        new THREE.Vector3(0, 0.32, -1.2),
+        new THREE.Vector3(0.72, 0.32, 0.8),
+      ];
+  }
+
+  private createRocketParticles(): void {
+    for (let i = 0; i < CONFIG.jump.rocketParticleCount; i++) {
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x42caff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(this.rocketGeometry, material);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.rocketParticles.push({ mesh, material, life: 0, vx: 0, vy: 0, vz: 0 });
+    }
+  }
+
+  private emitRocketParticles(): void {
+    const config = CONFIG.jump;
+    for (const emitter of this.wheelEmitters) {
+      const particle = this.rocketParticles[this.nextRocketParticle];
+      this.nextRocketParticle = (this.nextRocketParticle + 1) % this.rocketParticles.length;
+      particle.life = config.rocketLifetimeSeconds;
+      particle.mesh.visible = true;
+      particle.mesh.position.set(emitter.x, emitter.y, emitter.z);
+      particle.mesh.scale.setScalar(1);
+      particle.material.opacity = 0.9;
+      particle.vx = emitter.x === 0 ? 0 : Math.sign(emitter.x) * config.rocketSpread;
+      particle.vy = -config.rocketDownwardSpeed;
+      particle.vz = config.rocketSpeed;
+    }
+  }
+
+  private updateRocketParticles(dt: number): void {
+    const config = CONFIG.jump;
+    for (const particle of this.rocketParticles) {
+      if (particle.life <= 0) continue;
+      particle.life = Math.max(0, particle.life - dt);
+      if (particle.life === 0) {
+        particle.mesh.visible = false;
+        continue;
+      }
+      particle.mesh.position.x += particle.vx * dt;
+      particle.mesh.position.y += particle.vy * dt;
+      particle.mesh.position.z += particle.vz * dt;
+      const remaining = particle.life / config.rocketLifetimeSeconds;
+      particle.material.opacity = remaining * 0.9;
+      particle.mesh.scale.setScalar(0.55 + remaining * 0.45);
     }
   }
 }

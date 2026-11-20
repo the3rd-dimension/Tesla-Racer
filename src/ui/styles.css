@@ -88,6 +88,7 @@ kbd { display: inline-block; min-width: 22px; padding: 0 6px; margin: 0 2px; bor
   width: 48px; height: 48px; border-radius: 14px; border: 3px solid rgba(255,255,255,.7);
   background: rgba(0,0,0,.45); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer;
 }
+.icon-btn.view-btn { right: calc(var(--safe-r) + 66px); font-size: 14px; }
 .hud-actions { position: absolute; top: 50%; right: calc(var(--safe-r) + 16px); transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
 .hud-action-button { min-width: 82px; min-height: 48px; padding: 8px 14px; border: 3px solid rgba(255,255,255,.75); border-radius: 14px; color: #fff; font: inherit; font-size: 14px; font-weight: 900; background: rgba(21,17,14,.68); pointer-events: auto; touch-action: manipulation; }
 .hud-action-button.horn { background: rgba(46,196,182,.72); }

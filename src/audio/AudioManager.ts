@@ -1,5 +1,6 @@
 import { clamp } from '../core/math';
 import { AUDIO_PATHS } from '../config/audioConfig';
+import { CONFIG } from '../config/gameConfig';
 import type { Settings } from '../systems/Storage';
 
 /**
@@ -146,9 +147,11 @@ export class AudioManager {
       this.currentMusic = tracks[Math.floor(Math.random() * tracks.length)];
       this.currentMusicType = type;
     }
-    this.currentMusic.volume = this.settings.muted ? 0 : this.settings.master * this.settings.music;
+    this.currentMusic.volume = this.settings.muted
+      ? 0
+      : this.settings.master * this.settings.music * (type === 'menu' ? CONFIG.audio.menuMusicVolume : 1);
     void this.currentMusic.play().catch((error: unknown) => {
-      console.warn(`[Tesla Racer] Could not play ${type} music.`, error);
+      console.warn(`[Tesla Surfers] Could not play ${type} music.`, error);
     });
   }
 
@@ -198,7 +201,7 @@ export class AudioManager {
     audio.volume = this.settings.muted ? 0 : this.settings.master * volume;
     audio.currentTime = 0;
     void audio.play().catch((error: unknown) => {
-      console.warn(`[Tesla Racer] Could not play ${label}.`, error);
+      console.warn(`[Tesla Surfers] Could not play ${label}.`, error);
     });
   }
 
@@ -213,7 +216,8 @@ export class AudioManager {
     this.hornAudio.volume = sfxVolume;
     this.specialDialogue.volume = sfxVolume;
     if (this.currentMusic) {
-      this.currentMusic.volume = this.settings.muted ? 0 : this.settings.master * this.settings.music;
+      const menuVolume = this.currentMusicType === 'menu' ? CONFIG.audio.menuMusicVolume : 1;
+      this.currentMusic.volume = this.settings.muted ? 0 : this.settings.master * this.settings.music * menuVolume;
     }
   }
 

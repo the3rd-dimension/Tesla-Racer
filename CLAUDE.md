@@ -1,4 +1,4 @@
-# Tesla Racer - project guide for Claude Code
+# Tesla Surfers - project guide for Claude Code
 
 Browser endless auto-rickshaw runner. Three.js + TypeScript + Vite. Spec: `docs/REQUIREMENTS.md` (sections 3.13 chaser, 16 decisions).
 

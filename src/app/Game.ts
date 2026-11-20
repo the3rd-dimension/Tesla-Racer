@@ -1,7 +1,7 @@
 import { CONFIG } from '../config/gameConfig';
 import { AudioManager } from '../audio/AudioManager';
 import { Chaser } from '../chaser/Chaser';
-import { CameraRig } from '../core/CameraRig';
+import { CameraRig, type CameraView } from '../core/CameraRig';
 import { ModelLibrary } from '../core/ModelLibrary';
 import { GameRenderer } from '../core/Renderer';
 import { MODEL_PATHS } from '../config/modelPaths';
@@ -57,6 +57,7 @@ export class Game {
   private dyingT = 0;
   private warnCooldown = 0;
   private speedMultiplier = 1;
+  private cameraView: CameraView = 'external';
   private catchLimit: number = CONFIG.chaser.catchesToEndRun;
   private lastFrame = 0;
   private acc = 0;
@@ -105,6 +106,7 @@ export class Game {
       onResume: () => this.resume(),
       onMenu: () => this.goToMenu(),
       onPause: () => this.togglePause(),
+      onCameraToggle: () => this.toggleCameraView(),
       onHorn: () => this.audio.horn(),
       onSpecial: () => this.audio.playSpecialDialogue(),
       onSettings: (patch) => this.applySettings(patch),
@@ -154,8 +156,8 @@ export class Game {
     }
     if (steps === R.maxStepsPerFrame) this.acc = 0;
 
-    const showMirror = this.state === 'countdown' || this.state === 'playing' || this.state === 'paused';
-    this.rig.update(dt, this.player.x, this.player.boost01, this.gfx.aspect);
+    const showMirror = this.state === 'countdown' || this.state === 'playing';
+    this.rig.update(dt, this.player.x, this.player.group.position.y, this.player.boost01, this.gfx.aspect, this.cameraView);
     this.gfx.render(this.player.x, showMirror);
   };
 
@@ -512,6 +514,11 @@ export class Game {
     else this.pause();
   }
 
+  private toggleCameraView(): void {
+    this.cameraView = this.cameraView === 'external' ? 'driver' : 'external';
+    this.ui.setCameraView(this.cameraView);
+  }
+
   private setState(next: GameState): void {
     this.state = next;
     if (next === 'menu') this.audio.playMenuMusic();
@@ -521,7 +528,7 @@ export class Game {
     const run = next === 'countdown' || next === 'playing';
     this.input.enabled = run;
     this.chaser.setVisible(next !== 'menu' && next !== 'loading');
-    this.ui.setMirrorVisible(next === 'countdown' || next === 'playing' || next === 'paused');
+    this.ui.setMirrorVisible(next === 'countdown' || next === 'playing');
 
     switch (next) {
       case 'menu':

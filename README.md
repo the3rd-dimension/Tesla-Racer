@@ -1,8 +1,10 @@
-# Tesla Racer
+# Tesla Surfers
 
 Browser-based endless auto-rickshaw runner. Weave through Dhaka-style traffic, grab Boost and Jump pickups, and outrun the red chaser rickshaw behind you. Inspired by [baperrasta.com](https://baperrasta.com).
 
 **Stack:** Three.js, TypeScript, Vite, Vitest. No backend. Procedural placeholder art and audio (no asset files needed).
+
+Switch between the external chase camera and the driver's-seat view with the view button in the HUD.
 
 ## Quick start
 
@@ -27,6 +29,7 @@ Requires Node 18+.
 | Jump | W / Up (needs a green spring pickup) | Jump button (appears when available) |
 | Horn | H | — |
 | Special dialogue | F | Special button |
+| Camera view | HUD view button | HUD view button |
 | Pause | P / Esc | pause button |
 
 Touch controls appear automatically on touch devices and hide when a keyboard is used; "Always show touch controls" is in Settings.
