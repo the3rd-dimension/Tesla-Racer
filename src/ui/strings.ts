@@ -55,7 +55,13 @@ export const STRINGS = {
   leaderboardFailed: 'লিডারবোর্ড আনা যায়নি। আবার চেষ্টা করুন।',
   accountNameFallback: 'চালক',
   authFailed: 'গুগল অ্যাকাউন্টে প্রবেশ করা যায়নি। আবার চেষ্টা করুন।',
+  authFailedWithCode: (code: string) => `গুগল অ্যাকাউন্টে প্রবেশ করা যায়নি (${code})। Firebase সেটিংস যাচাই করুন।`,
+  authUnauthorizedDomain: 'এই ওয়েবসাইটের ডোমেইন Firebase-এ অনুমোদিত নয়। Authentication → Settings → Authorized domains-এ বর্তমান ডোমেইন যোগ করুন।',
+  authProviderDisabled: 'Firebase Console → Authentication → Sign-in method-এ Google provider চালু করুন।',
+  authPopupBlocked: 'ব্রাউজার Google sign-in popup আটকেছে। Popup অনুমতি দিয়ে আবার চেষ্টা করুন।',
+  authNetworkFailed: 'নেটওয়ার্ক সংযোগ ব্যর্থ হয়েছে। ইন্টারনেট সংযোগ যাচাই করে আবার চেষ্টা করুন।',
   accountLoading: 'অ্যাকাউন্টের তথ্য আনা হচ্ছে…',
   cloudSaveFailed: 'অনলাইন তথ্য সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।',
+  profileLoadFailed: 'অনলাইন অ্যাকাউন্টের তথ্য আনা যায়নি। স্থানীয়ভাবে খেলা চালিয়ে যেতে পারবেন; অনলাইন সংরক্ষণ কাজ নাও করতে পারে।',
   cloudPurchaseFailed: 'কেনাকাটা সম্পন্ন করা যায়নি। টাকা বা পর্যায় যাচাই করে আবার চেষ্টা করুন।',
 } as const;

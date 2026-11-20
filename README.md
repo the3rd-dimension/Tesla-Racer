@@ -111,7 +111,7 @@ The game works in guest mode without Firebase configuration. To enable Google si
    npx firebase-tools deploy --only firestore:rules
    ```
 
-7. Run `npm run dev` or build and deploy the static site. Add the production domain under **Authentication → Settings → Authorized domains** in Firebase Console.
+7. Run `npm run dev` or build and deploy the static site. Under **Authentication → Settings → Authorized domains** in Firebase Console, add the hostname you use locally (usually `localhost`) and the production domain.
 
 No Blaze plan or billing account is needed: the client talks directly to Firebase Authentication and Firestore. The first Google sign-in creates a profile containing the display name, best score, money, upgrades, owned skins, and equipped skin. Player profiles are private to their owner; the leaderboard contains only display names and scores. The Firestore rules enforce ownership and basic value ranges.
 

@@ -29,6 +29,29 @@ type DeathReason = 'crash' | 'caught';
 const IDLE_INPUT: InputSnapshot = { axis: 0, boost: false, jumpPressed: false };
 const LAUNCH_SECONDS = 1.2;
 
+function getAuthFailureMessage(error: unknown): string | null {
+  const code = error && typeof error === 'object' && 'code' in error
+    && typeof error.code === 'string'
+    ? error.code
+    : '';
+
+  switch (code) {
+    case 'auth/unauthorized-domain':
+      return STRINGS.authUnauthorizedDomain;
+    case 'auth/operation-not-allowed':
+      return STRINGS.authProviderDisabled;
+    case 'auth/popup-blocked':
+      return STRINGS.authPopupBlocked;
+    case 'auth/network-request-failed':
+      return STRINGS.authNetworkFailed;
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return null;
+    default:
+      return code ? STRINGS.authFailedWithCode(code) : STRINGS.authFailed;
+  }
+}
+
 /** Orchestrates one run: state machine, fixed-step update loop, collisions, scoring, UI/audio hooks. */
 export class Game {
   private state: GameState = 'loading';
@@ -465,7 +488,8 @@ export class Game {
       else await backend.signIn();
     } catch (error) {
       console.error('[Tesla Surfers] Google sign-in failed.', error);
-      this.ui.toast(STRINGS.authFailed);
+      const message = getAuthFailureMessage(error);
+      if (message) this.ui.toast(message, 6000);
     }
   }
 
@@ -509,7 +533,13 @@ export class Game {
       this.accountReady = true;
     } catch (error) {
       console.error('[Tesla Surfers] Could not load the Firebase profile.', error);
-      if (this.account?.uid === user.uid) this.ui.toast(STRINGS.cloudSaveFailed);
+      if (this.account?.uid !== user.uid) return;
+      this.accountReady = true;
+      this.storage.setCloudProfile(null);
+      if (this.modelsReady) this.applyGarage();
+      this.ui.setBest(this.storage.getBest());
+      this.ui.setTotalMoney(this.storage.getMoney());
+      this.ui.toast(STRINGS.profileLoadFailed, 6000);
     }
   }
 
