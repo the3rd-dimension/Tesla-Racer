@@ -58,10 +58,24 @@
           <p class="tag">এক টেসলার পিছনে আরেক টেসলা! </p>
           <p class="best">সর্বোচ্চ: <b id="menu-best">0</b></p>
           <p class="best">টাকা: <b id="menu-money">৳0</b></p>
+          <div class="account-controls">
+            <p id="account-status" aria-live="polite">অতিথি হিসেবে খেলছেন</p>
+            <button id="btn-account" class="btn">গুগল দিয়ে প্রবেশ করুন</button>
+            <button id="btn-leaderboard" class="btn">লিডারবোর্ড</button>
+          </div>
           <button id="btn-play" class="btn primary">খেলা শুরু</button>
           <button id="btn-store" class="btn">দোকান এবং চামড়া</button>
           <button id="btn-howto" class="btn">কিভাবে খেলব?</button>
           <button id="btn-settings" class="btn">সেটিংস</button>
+        </div>
+      </section>
+
+      <!-- Leaderboard -->
+      <section id="leaderboard" class="layer screen modal" hidden>
+        <div class="panel">
+          <h2>সেরা চালকেরা</h2>
+          <ol id="leaderboard-list" class="leaderboard-list"></ol>
+          <button id="btn-leaderboard-close" class="btn primary">ফিরে যান</button>
         </div>
       </section>
 

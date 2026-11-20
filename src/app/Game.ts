@@ -4,6 +4,8 @@ import { Chaser } from '../chaser/Chaser';
 import { CameraRig, type CameraView } from '../core/CameraRig';
 import { ModelLibrary } from '../core/ModelLibrary';
 import { GameRenderer } from '../core/Renderer';
+import type { FirebaseBackend, PlayerProfile } from '../firebase/FirebaseBackend';
+import { isFirebaseConfigured } from '../firebase/config';
 import { MODEL_PATHS } from '../config/modelPaths';
 import { clamp, smoothstep01 } from '../core/math';
 import { InputManager, type InputSnapshot } from '../input/InputManager';
@@ -19,6 +21,7 @@ import { TrafficManager, type Vehicle } from '../traffic/TrafficManager';
 import { STRINGS } from '../ui/strings';
 import type { StoreData, UI } from '../ui/UI';
 import { Road } from '../world/Road';
+import type { User } from 'firebase/auth';
 
 export type GameState = 'loading' | 'menu' | 'countdown' | 'playing' | 'paused' | 'gameover';
 type DeathReason = 'crash' | 'caught';
@@ -42,6 +45,8 @@ export class Game {
   private readonly touch: TouchControls;
   private readonly audio = new AudioManager();
   private readonly storage = new Storage();
+  private backend: FirebaseBackend | null = null;
+  private backendPromise: Promise<FirebaseBackend> | null = null;
   private readonly models = new ModelLibrary();
   private readonly score = new ScoreSystem();
   private settings: Settings;
@@ -58,6 +63,10 @@ export class Game {
   private warnCooldown = 0;
   private speedMultiplier = 1;
   private cameraView: CameraView = 'external';
+  private account: User | null = null;
+  private accountReady = true;
+  private modelsReady = false;
+  private runId = '';
   private catchLimit: number = CONFIG.chaser.catchesToEndRun;
   private lastFrame = 0;
   private acc = 0;
@@ -107,6 +116,8 @@ export class Game {
       onMenu: () => this.goToMenu(),
       onPause: () => this.togglePause(),
       onCameraToggle: () => this.toggleCameraView(),
+      onAccount: () => this.toggleAccount(),
+      onLeaderboard: () => this.openLeaderboard(),
       onHorn: () => this.audio.horn(),
       onSpecial: () => this.audio.playSpecialDialogue(),
       onSettings: (patch) => this.applySettings(patch),
@@ -117,7 +128,9 @@ export class Game {
     };
     this.ui.onClickSound = () => this.audio.click();
     this.ui.setSettingsValues(this.settings);
+    this.ui.setAccount(null, isFirebaseConfigured);
     this.audio.setSettings(this.settings);
+    void this.initializeBackend();
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.pause();
@@ -131,6 +144,7 @@ export class Game {
 
   async start(): Promise<void> {
     await this.models.load();
+    this.modelsReady = true;
     this.road.setBuildingModels(this.models.buildings);
     this.traffic.setVehicleModels(this.models.vehicles);
     this.chaser.setModel(this.models.pickVehicle('chaser'));
@@ -296,7 +310,7 @@ export class Game {
     this.player.applySlow(L.speedMultiplier, L.recoverSeconds);
     this.score.penalize(L.scorePenalty);
     this.score.addBumpReward();
-    this.storage.addMoney(CONFIG.money.bumpReward);
+    if (!this.account) this.storage.addMoney(CONFIG.money.bumpReward);
     this.rig.addShake(0.4);
     this.ui.toast(STRINGS.toastBump(L.scorePenalty, CONFIG.money.bumpReward), 700);
   }
@@ -340,6 +354,7 @@ export class Game {
   private endRun(): void {
     const reason = this.dying ?? 'crash';
     const score = this.score.score;
+    const previousBest = this.storage.getBest();
     const newBest = this.storage.saveBest(score);
     this.audio.stopEngine();
     this.setState('gameover');
@@ -352,11 +367,31 @@ export class Game {
       newBest,
       reason,
     });
+    const accountUid = this.account?.uid;
+    if (accountUid) {
+      void this.getFirebaseBackend()
+        .then((backend) => backend.completeRun(this.runId, Math.floor(score), Math.floor(this.score.money)))
+        .then((profile) => {
+          if (this.account?.uid !== accountUid) return;
+          this.applyCloudProfile(profile);
+          this.ui.setGameOverBest(profile.bestScore, profile.bestScore > previousBest);
+        })
+        .catch((error: unknown) => {
+          console.error('[Tesla Surfers] Could not save the run to Firebase.', error);
+          if (this.account?.uid === accountUid) this.ui.toast(STRINGS.cloudSaveFailed);
+        });
+    }
   }
 
   // ------------------------------------------------------------ run state
   private startRun(): void {
+    if (this.account && !this.accountReady) {
+      this.ui.toast(STRINGS.accountLoading);
+      return;
+    }
     this.elapsed = 0;
+    this.runId = globalThis.crypto?.randomUUID?.()
+      ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     this.launch = 0;
     this.catchCount = 0;
     this.lastCatchAt = 0;
@@ -419,6 +454,103 @@ export class Game {
     this.ui.showStore(this.storeData());
   }
 
+  private async toggleAccount(): Promise<void> {
+    try {
+      if (!isFirebaseConfigured) {
+        this.ui.toast(STRINGS.accountSetupNeeded, 5000);
+        return;
+      }
+      const backend = await this.getFirebaseBackend();
+      if (this.account) await backend.signOut();
+      else await backend.signIn();
+    } catch (error) {
+      console.error('[Tesla Surfers] Google sign-in failed.', error);
+      this.ui.toast(STRINGS.authFailed);
+    }
+  }
+
+  private async openLeaderboard(): Promise<void> {
+    if (!isFirebaseConfigured) {
+      this.ui.toast(STRINGS.accountSetupNeeded, 5000);
+      return;
+    }
+    if (!this.account) {
+      this.ui.toast(STRINGS.signInRequired);
+      return;
+    }
+    this.ui.showLeaderboardMessage(STRINGS.leaderboardLoading);
+    try {
+      const backend = await this.getFirebaseBackend();
+      this.ui.showLeaderboard(await backend.getLeaderboard());
+    } catch (error) {
+      console.error('[Tesla Surfers] Could not load the leaderboard.', error);
+      this.ui.showLeaderboardMessage(STRINGS.leaderboardFailed);
+    }
+  }
+
+  private async syncAccount(user: User | null): Promise<void> {
+    this.account = user;
+    this.ui.setAccount(user, isFirebaseConfigured);
+    if (!user) {
+      this.accountReady = true;
+      this.storage.setCloudProfile(null);
+      if (this.modelsReady) this.applyGarage();
+      this.ui.setBest(this.storage.getBest());
+      this.ui.setTotalMoney(this.storage.getMoney());
+      return;
+    }
+
+    this.accountReady = false;
+    try {
+      const backend = await this.getFirebaseBackend();
+      const profile = await backend.getProfile();
+      if (this.account?.uid !== user.uid) return;
+      this.applyCloudProfile(profile);
+      this.accountReady = true;
+    } catch (error) {
+      console.error('[Tesla Surfers] Could not load the Firebase profile.', error);
+      if (this.account?.uid === user.uid) this.ui.toast(STRINGS.cloudSaveFailed);
+    }
+  }
+
+  private applyCloudProfile(profile: PlayerProfile): void {
+    this.storage.setCloudProfile(profile);
+    this.applyGarage();
+    this.ui.setBest(profile.bestScore);
+    this.ui.setTotalMoney(profile.money);
+  }
+
+  private async initializeBackend(): Promise<void> {
+    if (!isFirebaseConfigured) return;
+    try {
+      const backend = await this.getFirebaseBackend();
+      backend.watchAuth((user) => {
+        void this.syncAccount(user);
+      });
+    } catch (error) {
+      console.error('[Tesla Surfers] Could not initialize Firebase.', error);
+      this.ui.toast(STRINGS.cloudSaveFailed);
+    }
+  }
+
+  private async getFirebaseBackend(): Promise<FirebaseBackend> {
+    if (this.backend) return this.backend;
+    if (!this.backendPromise) {
+      this.backendPromise = import('../firebase/FirebaseBackend')
+        .then(({ FirebaseBackend: Backend }) => {
+          const instance = new Backend();
+          this.backend = instance;
+          return instance;
+        });
+    }
+    try {
+      return await this.backendPromise;
+    } catch (error) {
+      this.backendPromise = null;
+      throw error;
+    }
+  }
+
   private storeData(): StoreData {
     const garage = this.storage.getGarage();
     const speed = CONFIG.store.upgrades.speed;
@@ -463,7 +595,19 @@ export class Game {
     return { money: this.storage.getMoney(), upgrades, skins };
   }
 
-  private buyUpgrade(id: UpgradeId): void {
+  private async buyUpgrade(id: UpgradeId): Promise<void> {
+    if (this.account) {
+      try {
+        const backend = await this.getFirebaseBackend();
+        this.applyCloudProfile(await backend.purchaseUpgrade(id));
+        this.ui.showStore(this.storeData());
+        this.ui.toast(STRINGS.toastPurchaseSuccess);
+      } catch (error) {
+        console.error('[Tesla Surfers] Could not purchase the upgrade.', error);
+        this.ui.toast(STRINGS.cloudPurchaseFailed);
+      }
+      return;
+    }
     if (!this.storage.purchaseUpgrade(id)) {
       this.ui.toast(this.storage.getMoney() < (upgradeCost(id, this.storage.getGarage().upgrades[id]))
         ? STRINGS.toastNotEnoughMoney
@@ -476,9 +620,21 @@ export class Game {
     this.ui.toast(STRINGS.toastPurchaseSuccess);
   }
 
-  private buySkin(index: number): void {
+  private async buySkin(index: number): Promise<void> {
     if (!this.models.skins[index]) {
       this.ui.toast(STRINGS.toastSkinUnavailable);
+      return;
+    }
+    if (this.account) {
+      try {
+        const backend = await this.getFirebaseBackend();
+        this.applyCloudProfile(await backend.purchaseSkin(index));
+        this.ui.showStore(this.storeData());
+        this.ui.toast(STRINGS.toastPurchaseSuccess);
+      } catch (error) {
+        console.error('[Tesla Surfers] Could not purchase the skin.', error);
+        this.ui.toast(STRINGS.cloudPurchaseFailed);
+      }
       return;
     }
     if (!this.storage.purchaseSkin(index)) {
@@ -491,7 +647,18 @@ export class Game {
     this.ui.toast(STRINGS.toastPurchaseSuccess);
   }
 
-  private equipSkin(index: number): void {
+  private async equipSkin(index: number): Promise<void> {
+    if (this.account) {
+      try {
+        const backend = await this.getFirebaseBackend();
+        this.applyCloudProfile(await backend.equipSkin(index));
+        this.ui.showStore(this.storeData());
+      } catch (error) {
+        console.error('[Tesla Surfers] Could not equip the skin.', error);
+        this.ui.toast(STRINGS.cloudSaveFailed);
+      }
+      return;
+    }
     if (!this.storage.equipSkin(index)) return;
     this.applyGarage();
     this.ui.showStore(this.storeData());

@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/gameConfig';
 import { MODEL_PATHS } from '../config/modelPaths';
 import { DEFAULT_GARAGE, type GarageState, type UpgradeId, upgradeCost } from './Garage';
+import type { PlayerProfile } from '../firebase/FirebaseBackend';
 
 const BEST_KEY = 'teslaRacer.best.v1';
 const MONEY_KEY = 'teslaRacer.money.v1';
@@ -26,6 +27,11 @@ export const DEFAULT_SETTINGS: Settings = {
 /** localStorage wrapper that never throws (private mode, quota, disabled storage). */
 export class Storage {
   private memory = new Map<string, string>();
+  private cloudProfile: PlayerProfile | null = null;
+
+  setCloudProfile(profile: PlayerProfile | null): void {
+    this.cloudProfile = profile;
+  }
 
   private read(key: string): string | null {
     try {
@@ -44,6 +50,7 @@ export class Storage {
   }
 
   getBest(): number {
+    if (this.cloudProfile) return this.cloudProfile.bestScore;
     const n = Number(this.read(BEST_KEY));
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   }
@@ -51,6 +58,7 @@ export class Storage {
   /** Returns true if `score` is a new best (and saves it). */
   saveBest(score: number): boolean {
     const s = Math.floor(score);
+    if (this.cloudProfile) return s > this.cloudProfile.bestScore;
     if (s > this.getBest()) {
       this.write(BEST_KEY, String(s));
       return true;
@@ -59,18 +67,27 @@ export class Storage {
   }
 
   getMoney(): number {
+    if (this.cloudProfile) return this.cloudProfile.money;
     const n = Number(this.read(MONEY_KEY));
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   }
 
   addMoney(amount: number): number {
     if (!Number.isFinite(amount) || amount < 0) throw new RangeError('Money addition must be a nonnegative finite number.');
+    if (this.cloudProfile) throw new Error('Authenticated money rewards must be saved through Firebase.');
     const total = this.getMoney() + Math.floor(amount);
     this.write(MONEY_KEY, String(total));
     return total;
   }
 
   getGarage(): GarageState {
+    if (this.cloudProfile) {
+      return {
+        upgrades: { ...this.cloudProfile.garage.upgrades },
+        ownedSkins: [...this.cloudProfile.garage.ownedSkins],
+        equippedSkin: this.cloudProfile.garage.equippedSkin,
+      };
+    }
     try {
       const raw = this.read(GARAGE_KEY);
       if (!raw) return this.defaultGarage();
@@ -98,6 +115,7 @@ export class Storage {
   }
 
   purchaseUpgrade(id: UpgradeId): boolean {
+    if (this.cloudProfile) throw new Error('Authenticated upgrades must be purchased through Firebase.');
     const garage = this.getGarage();
     const level = garage.upgrades[id];
     if (level >= CONFIG.store.upgrades[id].maxLevel) return false;
@@ -110,6 +128,7 @@ export class Storage {
   }
 
   purchaseSkin(index: number): boolean {
+    if (this.cloudProfile) throw new Error('Authenticated skins must be purchased through Firebase.');
     if (!Number.isInteger(index) || index < 0 || index >= MODEL_PATHS.skins.length) return false;
     const garage = this.getGarage();
     if (garage.ownedSkins.includes(index) || this.getMoney() < CONFIG.store.skinCost) return false;
@@ -121,6 +140,7 @@ export class Storage {
   }
 
   equipSkin(index: number): boolean {
+    if (this.cloudProfile) throw new Error('Authenticated skins must be equipped through Firebase.');
     const garage = this.getGarage();
     if (index !== -1 && !garage.ownedSkins.includes(index)) return false;
     garage.equippedSkin = index;

@@ -2,7 +2,7 @@
 
 Browser-based endless auto-rickshaw runner. Weave through Dhaka-style traffic, grab Boost and Jump pickups, and outrun the red chaser rickshaw behind you. Inspired by [baperrasta.com](https://baperrasta.com).
 
-**Stack:** Three.js, TypeScript, Vite, Vitest. No backend. Procedural placeholder art and audio (no asset files needed).
+**Stack:** Three.js, TypeScript, Vite, Vitest, Firebase Authentication and Firestore. Procedural placeholder art and audio.
 
 Switch between the external chase camera and the driver's-seat view with the view button in the HUD.
 
@@ -16,9 +16,9 @@ npm run preview    # serve the production build
 npm run test       # unit tests (patterns, difficulty, collision, score, storage)
 ```
 
-Requires Node 18+.
+Requires Node.js 20.19+.
 
-> **First run note:** this code was written without being able to run `npm install` / `tsc` in the authoring environment. The pure logic was unit-tested and simulated headlessly, but the first `npm run dev` / `npm run typecheck` is the real test. Expect to fix a few small type or runtime issues; see "If something breaks" below.
+Run `npm run build` and `npm run test` before deploying changes.
 
 ## Controls
 
@@ -36,12 +36,13 @@ Touch controls appear automatically on touch devices and hide when a keyboard is
 
 ## Gameplay rules
 
-- **Light vehicles** (motorbikes, handcarts): crashable. Bumping one slows you down, costs a few score points, and earns $10.
+- **Light vehicles** (motorbikes, handcarts): crashable. Bumping one slows you down, costs a few score points, and earns ৳10.
 - **Heavy vehicles** (buses, trucks, cars - marked with a red under-glow): end the run. Cars can be jumped; buses and trucks cannot.
 - **Chaser:** the first catch rams you (big slowdown, then it drops back). **The second catch ends the run.** Watch the rear-view mirror, the CHASER bar, and the red screen edge.
 - **Pickups:** Boost (blue-green battery) refills the boost meter. Jump (green spring) gives one jump for 10 seconds.
-- Score = distance + pickups - penalties. Money is earned per light-vehicle bump and the total is saved in `localStorage`; best score is saved there too.
-- **Store:** spend saved money on engine speed, boost capacity/power, chaser-hit tolerance, and available Tesla skins. Upgrade levels, skin ownership, and the equipped skin persist locally.
+- Score = distance + pickups - penalties. Guest progress is saved in `localStorage`; Google-account progress is saved to Firebase.
+- **Store:** spend saved money on engine speed, boost capacity/power, chaser-hit tolerance, and available Tesla skins. Signed-in progress syncs to the player's Firestore profile.
+- **Leaderboard:** sign in with Google to save your account's best score and compare it with the top ten players.
 - **TeslaSkin3** floats above the road with a gentle hover animation when equipped.
 - **Speedometer:** current speed is shown in km/h in the HUD. The H key honks the horn while a run is active.
 - **Audio assets:** all paths and random sound arrays are configured in `src/config/audioConfig.ts`. Add entries to `vehicleHit`, `chaserClose`, `mainMenuMusic`, or `backgroundMusic` to register more variants.
@@ -69,7 +70,8 @@ src/
   systems/                 difficulty, score, collision, storage (pure, unit-tested)
   input/                   keyboard + touch with automatic mode switching
   audio/AudioManager.ts    procedural SFX (Web Audio), volume settings
-  ui/                      UI controller, strings (i18n-ready), CSS
+  ui/                      UI controller, Bangla strings, CSS
+  firebase/                Firebase Authentication and Firestore client
 tests/                     Vitest unit tests
 ```
 
@@ -88,6 +90,35 @@ Add player skin GLBs to `skins`; the store only enables skins whose files load. 
 
 To add a traffic pattern, edit `src/traffic/patterns.ts` and run `npm test` (it verifies a safe gap always exists).
 
+## Firebase accounts and leaderboard
+
+The game works in guest mode without Firebase configuration. To enable Google sign-in, cloud saves, and the leaderboard on Firebase's no-cost Spark plan:
+
+1. Create a Firebase project and register a **Web app**. Copy its web-app configuration values.
+2. In Firebase Console, enable **Authentication → Google** and set a support email.
+3. Create a **Cloud Firestore** database.
+4. Copy `.env.example` to `.env.local` and fill in the values from the web-app config, including `VITE_FIREBASE_MEASUREMENT_ID` to enable Analytics. These are public client identifiers, not service-account credentials. Never put a service-account key in the browser or commit private credentials.
+5. Install the Firebase CLI if needed, sign in, and select the project:
+
+   ```bash
+   npx firebase-tools login
+   npx firebase-tools use --add
+   ```
+
+6. Deploy the Firestore security rules:
+
+   ```bash
+   npx firebase-tools deploy --only firestore:rules
+   ```
+
+7. Run `npm run dev` or build and deploy the static site. Add the production domain under **Authentication → Settings → Authorized domains** in Firebase Console.
+
+No Blaze plan or billing account is needed: the client talks directly to Firebase Authentication and Firestore. The first Google sign-in creates a profile containing the display name, best score, money, upgrades, owned skins, and equipped skin. Player profiles are private to their owner; the leaderboard contains only display names and scores. The Firestore rules enforce ownership and basic value ranges.
+
+**Cheating and free-tier limits:** without a trusted backend, a player can modify their own score, money, and upgrades using browser tools. The rules prevent changing another player's data, but do not make a player's own progress cheat-proof. Spark has usage quotas; if a quota is reached, Firebase features may pause until usage resets or the project is upgraded. Check Firebase's current Spark limits before launch.
+
+Guest saves are not automatically merged into a Google account. Existing guest progress stays in that browser; a new account starts with a fresh cloud profile.
+
 ## Deploying
 
 `npm run build` produces a static `dist/` folder with relative paths. Upload it to any static host (Netlify, Vercel, Cloudflare Pages, GitHub Pages, or a plain web server). HTTPS is recommended.
@@ -101,4 +132,4 @@ To add a traffic pattern, edit `src/traffic/patterns.ts` and run `npm test` (it 
 
 ## Roadmap (not in this base build)
 
-Draggable/resizable touch buttons (as on the reference site), near-miss bonus, music, final 3D models and audio, language switch (Bangla), online leaderboard.
+Draggable/resizable touch buttons (as on the reference site), near-miss bonus, music, and final 3D models and audio.

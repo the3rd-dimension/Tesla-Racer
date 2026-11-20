@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/gameConfig';
 import type { CameraView } from '../core/CameraRig';
 import type { MirrorRect } from '../core/Renderer';
+import type { LeaderboardEntry } from '../firebase/FirebaseBackend';
 import type { UpgradeId } from '../systems/Garage';
 import type { Settings } from '../systems/Storage';
 import { formatTaka, STRINGS } from './strings';
@@ -14,6 +15,8 @@ export interface UIHandlers {
   onMenu(): void;
   onPause(): void;
   onCameraToggle(): void;
+  onAccount(): void;
+  onLeaderboard(): void;
   onHorn(): void;
   onSpecial(): void;
   onSettings(patch: Partial<Settings>): void;
@@ -97,6 +100,8 @@ export class UI {
   private readonly settingsEl = $('settings');
   private readonly howtoEl = $('howto');
   private readonly storeEl = $('store');
+  private readonly leaderboardEl = $('leaderboard');
+  private readonly leaderboardList = $('leaderboard-list');
   private readonly storeMoney = $('store-money');
   private readonly storeUpgrades = $('store-upgrades');
   private readonly storeSkins = $('store-skins');
@@ -127,6 +132,9 @@ export class UI {
     click('btn-menu-pause', () => this.handlers?.onMenu());
     click('btn-pause', () => this.handlers?.onPause());
     click('btn-view', () => this.handlers?.onCameraToggle());
+    click('btn-account', () => this.handlers?.onAccount());
+    click('btn-leaderboard', () => this.handlers?.onLeaderboard());
+    click('btn-leaderboard-close', () => this.setHidden(this.leaderboardEl, true));
     click('btn-horn', () => this.handlers?.onHorn());
     click('btn-special', () => this.handlers?.onSpecial());
     click('btn-howto', () => this.setHidden(this.howtoEl, false));
@@ -160,11 +168,49 @@ export class UI {
 
   /** Close the settings / how-to modal if open. Returns true if something was closed. */
   closeModals(): boolean {
-    const open = !this.settingsEl.hidden || !this.howtoEl.hidden || !this.storeEl.hidden;
+    const open = !this.settingsEl.hidden || !this.howtoEl.hidden || !this.storeEl.hidden || !this.leaderboardEl.hidden;
     this.setHidden(this.settingsEl, true);
     this.setHidden(this.howtoEl, true);
     this.setHidden(this.storeEl, true);
+    this.setHidden(this.leaderboardEl, true);
     return open;
+  }
+
+  setAccount(user: { displayName: string | null } | null, configured: boolean): void {
+    const status = $('account-status');
+    const button = $('btn-account');
+    if (user) {
+      status.textContent = user.displayName || STRINGS.accountNameFallback;
+      button.textContent = STRINGS.signOut;
+    } else {
+      status.textContent = configured ? 'অতিথি হিসেবে খেলছেন' : STRINGS.accountSetupNeeded;
+      button.textContent = STRINGS.googleSignIn;
+    }
+  }
+
+  showLeaderboard(entries: readonly LeaderboardEntry[]): void {
+    this.leaderboardList.replaceChildren();
+    if (entries.length === 0) {
+      this.showLeaderboardMessage(STRINGS.leaderboardEmpty);
+    } else {
+      entries.forEach((entry) => {
+        const row = document.createElement('li');
+        row.append(document.createTextNode(entry.displayName));
+        const score = document.createElement('span');
+        score.textContent = entry.bestScore.toLocaleString();
+        row.append(score);
+        this.leaderboardList.append(row);
+      });
+    }
+    this.setHidden(this.leaderboardEl, false);
+  }
+
+  showLeaderboardMessage(message: string): void {
+    this.leaderboardList.replaceChildren();
+    const row = document.createElement('li');
+    row.textContent = message;
+    this.leaderboardList.append(row);
+    this.setHidden(this.leaderboardEl, false);
   }
 
   hideLoading(): void {
@@ -370,6 +416,11 @@ export class UI {
     $('go-pickups').textContent = String(d.pickups);
     $('go-money').textContent = formatTaka(d.money);
     this.vignette.style.opacity = '0';
+  }
+
+  setGameOverBest(best: number, newBest: boolean): void {
+    $('go-best').textContent = Math.floor(best).toLocaleString();
+    this.setHidden($('go-record'), !newBest);
   }
 
   // ---- mirror ----------------------------------------------------------
